@@ -12,16 +12,94 @@ library(ggplot2)
 
 
 
-```{r}
+```{r clean data}
 
 homicide_df = read_csv("./Data/homicide-data.csv") %>%
   mutate(city_state = str_c(city, state, sep = ",")) %>%
   mutate(disposition = recode(disposition, `Closed without arrest` = "unsolved", `Open/No arrest` = "unsolved",    `Closed by arrest` = "solved")) %>%
-  filter(!city_state %in% c("Dallas, TX", "Phoenix, AZ", "Kansas City, MO", "Tulsa, AZ")) %>%
+  mutate(disposition = fct_relevel(disposition, "unsolved")) %>%
+  mutate(disposition  = factor(disposition)) %>%
+  filter(!(city_state %in% c("Dallas,TX", "Phoenix,AZ", "Kansas City,MO", "Tulsa,AL"))) %>%
   mutate(victim_race = ifelse(victim_race == "White", "white", "non-white")) %>%
   mutate(victim_race = factor(victim_race, levels = c("white", "non-white"))) %>%
-  mutate(victim_age = as.numeric(victim_age))
+  mutate(victim_age = as.numeric(victim_age)) %>%
+  select(city_state, victim_sex, victim_race, victim_age,disposition)
   
 
 ```
+
+
+```{r baltimore}
+ baltimore_glm = homicide_df %>%
+  filter(city_state == "Baltimore,MD") %>%
+  glm(disposition ~ victim_sex + victim_race+victim_age , data = ., family = binomial())
+
+
+est_CI_balt = baltimore_glm %>%
+  broom::tidy(confint(.)) %>%
+  filter(term == "victim_racenon-white") %>%
+  select(estimate, conf.low,conf.high) %>%
+  mutate(estimate = exp(estimate),
+         conf.low = exp(conf.low),
+         conf.high = exp(conf.high))
+
+#A non-white person has .44 times the odds of a homicide being solved than a white person
+
+```
+
+```{r}
+
+homicide_df %>%
+  group_by(city_state) %>%
+  summarize(race_factors = length(unique(victim_race)),
+            disposition_factors = length(unique(disposition)),
+            sex_factors = length(unique(victim_sex))) %>% View()
+  
+
+
+
+
+```
+
+
+```{r}
+homicide_df %>%
+  group_by(city_state) %>%
+  nest() %>%
+  mutate(regression = map(data, exp() %>% ~broom::tidy(confint(glm(disposition ~ victim_sex + victim_age + victim_race, data = .x, family = binomial()))))) %>%
+  select(city_state, regression) %>%
+  unnest() %>% View()
+
+
+all_city_estimates = homicide_df %>%
+  group_by(city_state) %>%
+  nest() %>%
+  mutate(confint = map(data,~confint(glm(disposition ~ victim_sex + victim_age + victim_race, data = .x, family = binomial()))),
+      confint = map(confint, broom::tidy),
+      regression = map(data, ~glm(disposition ~ victim_sex + victim_age + victim_race, data = .x, family = binomial())),
+      regression = map(regression, broom::tidy)) %>%
+  select(city_state, regression, confint) %>%
+  unnest() %>%
+  select(city_state,term, estimate,X2.5..,X97.5..) %>%
+  filter(term == "victim_racenon-white") %>%
+  mutate(estimate = exp(estimate),
+         X2.5.. = exp(X2.5..),
+         X97.5.. = exp(X97.5..)) %>%
+  rename(conf_low = X2.5..,
+         conf_high = X97.5..) %>%
+  select(-term)
+
+all_city_estimates %>%
+  mutate(city_state = fct_reorder(city_state, estimate)) %>%
+  ggplot(aes( x = city_state, y = estimate )) +
+    geom_errorbar(aes(ymin = conf_low, ymax = conf_high), width = .1) +
+    geom_point() +
+    theme(axis.text.x = element_text(angle = 90, hjust = 1)) +
+    labs(title = "Solved Homicides Ratio: nonwhite:white",
+         x = "city",
+         y = "estimate")
+
+```
+
+
 
