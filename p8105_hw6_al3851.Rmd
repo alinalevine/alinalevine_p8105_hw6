@@ -138,8 +138,8 @@ plot(leaps_birthweight)
 
 This plot shows that including sex of the baby, head circumference, length of baby, mother's weight at delivery, father's race, mother's race, gestational weeks, mother's height, parity, number of cigarettes, and weightgain. 
 
-```{r}
-fit_birthweight = lm(bwt~babysex + bhead + blength + delwt + frace + mrace + gaweeks + mheight + wtgain + smoken)
+```{r fit my model}
+fit_birthweight = lm(bwt~babysex + bhead + blength + delwt + frace + mrace + gaweeks + mheight + wtgain + smoken, data = birthweight_df)
 ```
 
 
@@ -166,3 +166,62 @@ ppwt: mother’s pre-pregnancy weight (pounds)
 smoken: average number of cigarettes smoked per day during pregnancy
 wtgain: mother’s weight gain during pregnancy (pounds)
 
+```{r residuals versus fitting value plots}
+
+  
+birthweight_pred = add_predictions(birthweight_df, fit_birthweight)
+birthweight_pred_res = add_residuals(birthweight_pred, fit_birthweight)
+
+birthweight_df %>% 
+  modelr::add_residuals(fit_birthweight) %>% 
+  modelr::add_predictions(fit_birthweight) %>%
+  ggplot(aes(x = pred, y = resid)) +
+    geom_point()
+
+
+
+```
+
+This does not look like a great model because the error variance is not constant over the predicted values. The error gets very high as predicted values get to the lower extremes. However, I looked at the plots of subsets of the variables I chose, and the same phenomena happened for these subsets as well. 
+
+##Comparison Models
+
+```{r comparison models, results = "hide", message = FALSE, warning = FALSE}
+
+fit_simple = lm(bwt ~ blength + gaweeks, data = birthweight_df)
+fit_interactions = lm(bwt~ (bhead + blength + babysex)^3, data = birthweight_df)
+
+
+```
+
+#Cross Validation comparisons 
+
+```{r cross validation, results = "hide", message = FALSE, warning = FALSE}
+
+cv_birthweight = 
+  crossv_mc(birthweight_df, n = 100) %>%
+  mutate(train = map(train, as_tibble),
+         test = map(test, as_tibble)) %>%
+  mutate(my_mod    = map(train, ~lm(bwt ~ babysex + bhead + blength + delwt + frace + mrace + gaweeks + mheight + wtgain + smoken, data = .x)),
+         simple_mod = map(train, ~lm(bwt ~ blength + gaweeks, data = .x)),
+         interactions_mod = map(train, ~lm(bwt~ (bhead + blength + babysex)^3, data = .x))) %>% 
+  mutate(rmse_my_mod  = map2_dbl(my_mod, test, ~rmse(model = .x, data = .y)),
+         rmse_simple_mod = map2_dbl(simple_mod, test, ~rmse(model = .x, data = .y)),
+         rmse_interactions_mod = map2_dbl(interactions_mod, test, ~rmse(model = .x, data = .y)))
+```
+
+
+```{r compare rmse, results = "hide", warning = FALSE, message = FALSE}
+
+cv_birthweight %>%
+  select(rmse_my_mod, rmse_simple_mod, rmse_interactions_mod) %>%
+  unnest() %>%
+  gather(key = "model", value = "rmse") %>%
+  mutate(model = str_replace(model, "rmse_", "")) %>%
+  ggplot(aes( x = model, y = rmse)) +
+    geom_boxplot()
+
+
+```
+
+The box plots that plot the rmse for each split of the dataset show that my model performs better than the the model that uses cicumference, length, sex and all interactions and the model that uses length at birth and gestational age, as the distribution of rmse values is lower. The worst performing model is the model only using length at birth and gestational age because its disribution of rmse values is highest.  
