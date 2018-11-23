@@ -8,6 +8,7 @@ output: github_document
 ```{r setup, include=FALSE}
 library(tidyverse)
 library(ggplot2)
+library(leaps)
 ```
 
 
@@ -101,5 +102,67 @@ all_city_estimates %>%
 
 ```
 
+#ppbmi is very highly correlated with weight, so I am removing this variable. ppwt is very highly correlated with delivery weight, so I am also removing that. Additionally, there is only 1 value for pnumlbw and pnumsga
+```{r data cleaning, results = "hide", message = FALSE, warning = FALSE}
 
+birthweight_df = read_csv("./Data/birthweight.csv") %>%
+  mutate(babysex = factor(babysex),
+         frace = factor(frace),
+         malform = factor(malform),
+         mrace = factor(mrace),
+         )
+  select(-c(pnumlbw, pnumsga, ppbmi, ppwt))  
+
+birthweight_df %>%
+  skimr::skim()
+
+birthweight_df %>%
+  select_if(is.numeric) %>%
+  cor %>% View()
+
+birthweight_df = birthweight_df %>%
+  select(-c(pnumlbw, pnumsga, ppbmi, ppwt))
+
+#no missing data
+
+```
+
+
+I am using the model with the lowest BIC to choose my model. I am plotting the combination of variables that produces the lowest BIC for each number of possible predictors. 
+```{r BIC criteria, results = "hide", message = FALSE, warning = FALSE}
+
+leaps_birthweight = regsubsets(bwt~., data = birthweight_df, nbest = 1, nvmax= 16)
+plot(leaps_birthweight)
+
+```
+
+This plot shows that including sex of the baby, head circumference, length of baby, mother's weight at delivery, father's race, mother's race, gestational weeks, mother's height, parity, number of cigarettes, and weightgain. 
+
+```{r}
+fit_birthweight = lm(bwt~babysex + bhead + blength + delwt + frace + mrace + gaweeks + mheight + wtgain + smoken)
+```
+
+
+
+
+babysex: baby’s sex (male = 1, female = 2)
+bhead: baby’s head circumference at birth (centimeters)
+blength: baby’s length at birth (centimeteres)
+bwt: baby’s birth weight (grams)
+delwt: mother’s weight at delivery (pounds)
+fincome: family monthly income (in hundreds, rounded)
+frace: father’s race (1= White, 2 = Black, 3 = Asian, 4 = Puerto Rican, 8 = Other, 9 = Unknown)
+gaweeks: gestational age in weeks
+malform: presence of malformations that could affect weight (0 = absent, 1 = present)
+menarche: mother’s age at menarche (years)
+mheigth: mother’s height (inches)
+momage: mother’s age at delivery (years)
+mrace: mother’s race (1= White, 2 = Black, 3 = Asian, 4 = Puerto Rican, 8 = Other)
+parity: number of live births prior to this pregnancy
+pnumlbw: previous number of low birth weight babies
+pnumgsa: number of prior small for gestational age babies
+ppbmi: mother’s pre-pregnancy BMI
+ppwt: mother’s pre-pregnancy weight (pounds)
+smoken: average number of cigarettes smoked per day during pregnancy
+wtgain: mother’s weight gain during pregnancy (pounds)
 
