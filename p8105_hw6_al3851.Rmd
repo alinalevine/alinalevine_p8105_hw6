@@ -97,7 +97,7 @@ all_city_estimates %>%
 #Problem 2
 
 
-#Data Cleaning
+##Data Cleaning
 
 ppbmi is very highly correlated with weight, so I am removing this variable. ppwt is very highly correlated with delivery weight, so I am also removing that. Additionally, there is only 1 value for pnumlbw and pnumsga, so I am removing those. I am also looking at the correlation between numeric variables to remove redundant variables.
 
@@ -137,7 +137,7 @@ plot(leaps_birthweight)
 
 This plot shows that the model with the lowest bic includes sex of the baby, head circumference, length of baby, mother's weight at delivery, father's race, mother's race, gestational weeks, mother's height, parity, number of cigarettes, and weightgain. 
 
-#Fitting the model
+##Fitting the model
 
 ```{r fit my model, results = "hide", warning = FALSE, message = FALSE}
 fit_birthweight = lm(bwt~babysex + bhead + blength + delwt + frace + mrace + gaweeks + mheight + wtgain + smoken, data = birthweight_df)
@@ -146,7 +146,7 @@ fit_birthweight = lm(bwt~babysex + bhead + blength + delwt + frace + mrace + gaw
 
 
 
-#Residuals Vs. Fitted Values
+##Residuals Vs. Fitted Values
 
 ```{r residuals versus fitted value plots, results = "hide", message = FALSE, warning = FALSE}
 
@@ -175,7 +175,7 @@ fit_interactions = lm(bwt~ (bhead + blength + babysex)^3, data = birthweight_df)
 
 ```
 
-#Cross Validation comparisons 
+##Cross Validation comparisons 
 
 ```{r cross validation, results = "hide", message = FALSE, warning = FALSE}
 
