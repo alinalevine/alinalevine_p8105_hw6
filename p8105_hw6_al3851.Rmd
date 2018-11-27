@@ -20,7 +20,10 @@ library(modelr)
 
 homicide_df = read_csv("./Data/homicide-data.csv") %>%
   mutate(city_state = str_c(city, state, sep = ",")) %>%
-  mutate(disposition = recode(disposition, `Closed without arrest` = "unsolved", `Open/No arrest` = "unsolved",    `Closed by arrest` = "solved")) %>%
+  mutate(disposition = recode(disposition, 
+                              `Closed without arrest` = "unsolved", 
+                              `Open/No arrest` = "unsolved",
+                              `Closed by arrest` = "solved")) %>%
   mutate(disposition = fct_relevel(disposition, "unsolved")) %>%
   mutate(disposition  = factor(disposition)) %>%
   filter(!(city_state %in% c("Dallas,TX", "Phoenix,AZ", "Kansas City,MO", "Tulsa,AL"))) %>%
@@ -67,10 +70,17 @@ First I am nesting by city_state and then am creating a list column by mapping c
 all_city_estimates = homicide_df %>%
   group_by(city_state) %>%
   nest() %>%
-  mutate(confint = map(data,~confint(glm(disposition ~ victim_sex + victim_age + victim_race, data = .x, family = binomial()))),
-      confint = map(confint, broom::tidy),
-      regression = map(data, ~glm(disposition ~ victim_sex + victim_age + victim_race, data = .x, family = binomial())),
-      regression = map(regression, broom::tidy)) %>%
+  mutate(confint = map(data,~confint(glm(disposition ~ victim_sex + 
+                                           victim_age + 
+                                           victim_race, 
+                                           data = .x, family = binomial()))),
+          confint = map(confint, broom::tidy),
+          regression = map(data, ~glm(disposition ~ victim_sex + 
+                                            victim_age + 
+                                            victim_race, 
+                                            data = .x, 
+                                            family = binomial())),
+          regression = map(regression, broom::tidy)) %>%
   select(city_state, regression, confint) %>%
   unnest() %>%
   select(city_state,term, estimate,X2.5..,X97.5..) %>%
@@ -140,7 +150,11 @@ This plot shows that the model with the lowest bic includes sex of the baby, hea
 ##Fitting the model
 
 ```{r fit my model, results = "hide", warning = FALSE, message = FALSE}
-fit_birthweight = lm(bwt~babysex + bhead + blength + delwt + frace + mrace + gaweeks + mheight + wtgain + smoken, data = birthweight_df)
+fit_birthweight = lm(bwt~babysex + bhead + blength + 
+                       delwt + frace + mrace + 
+                       gaweeks + mheight + wtgain + 
+                       smoken, 
+                       data = birthweight_df)
 ```
 
 
@@ -183,7 +197,9 @@ cv_birthweight =
   crossv_mc(birthweight_df, n = 100) %>%
   mutate(train = map(train, as_tibble),
          test = map(test, as_tibble)) %>%
-  mutate(my_mod    = map(train, ~lm(bwt ~ babysex + bhead + blength + delwt + frace + mrace + gaweeks + mheight + wtgain + smoken, data = .x)),
+  mutate(my_mod = map(train, ~lm(bwt ~ babysex + bhead + blength + 
+                                   delwt + frace + mrace + gaweeks + 
+                                   mheight + wtgain + smoken, data = .x)),
          simple_mod = map(train, ~lm(bwt ~ blength + gaweeks, data = .x)),
          interactions_mod = map(train, ~lm(bwt~ (bhead + blength + babysex)^3, data = .x))) %>% 
   mutate(rmse_my_mod  = map2_dbl(my_mod, test, ~rmse(model = .x, data = .y)),
